@@ -1,202 +1,207 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@apollo/client";
-import { SEARCH_PHONES, GET_RETAILERS } from "../../graphql/queries";
+import { useQuery, useMutation } from "@apollo/client";
+import { GET_RETAILERS } from "../../graphql/queries";
+import { ADD_RETAILER, UPDATE_RETAILER, DELETE_RETAILER } from "../../graphql/mutations";
 
 export default function RetailersPage() {
-  const [selectedRetailerId, setSelectedRetailerId] = useState<string | undefined>();
-  const [selectedPhone, setSelectedPhone] = useState<any | null>(null);
+  // Queries
+  const { data, loading, error, refetch } = useQuery(GET_RETAILERS);
 
-  // Fetch retailers for dropdown
-  const { data: retailData } = useQuery(GET_RETAILERS);
+  // Mutations
+  const [addRetailer] = useMutation(ADD_RETAILER);
+  const [updateRetailer] = useMutation(UPDATE_RETAILER);
+  const [deleteRetailer] = useMutation(DELETE_RETAILER);
 
-  // Fetch phones filtered by retailer
-  const { loading, error, data, refetch } = useQuery(SEARCH_PHONES, {
-    variables: { input: { retailerId: selectedRetailerId } },
-  });
+  // States
+  const [newRetailer, setNewRetailer] = useState({ name: "", location: "" });
+  const [editRetailer, setEditRetailer] = useState<any | null>(null);
+  const [viewRetailer, setViewRetailer] = useState<any | null>(null);
 
-  const handleRetailerChange = (id: string) => {
-    setSelectedRetailerId(id || undefined);
-    refetch({ input: { retailerId: id || undefined } });
+  // Add retailer
+  const handleAdd = async () => {
+    try {
+      await addRetailer({ variables: { input: newRetailer } });
+      setNewRetailer({ name: "", location: "" });
+      refetch();
+    } catch (err: any) {
+      console.error(err.message);
+      alert("Failed to add retailer. Check console for details.");
+    }
   };
 
-  const getRetailerName = (id: string) =>
-    retailData?.retailers.find((r: any) => r.id === id)?.name || "Unknown";
+  // Update retailer
+  const handleUpdate = async () => {
+    if (!editRetailer) return;
+    try {
+      await updateRetailer({
+        variables: {
+          id: editRetailer.id,
+          input: {
+            name: editRetailer.name,
+            location: editRetailer.location,
+          },
+        },
+      });
+      setEditRetailer(null);
+      refetch();
+    } catch (err: any) {
+      console.error(err.message);
+      alert("Failed to update retailer. Check console for details.");
+    }
+  };
 
-  if (loading) return <p style={{ color: "#ccc", textAlign: "center", marginTop: 50 }}>Loading phones...</p>;
-  if (error) return <p style={{ color: "#e74c3c", textAlign: "center", marginTop: 50 }}>Error loading phones</p>;
+  // Delete retailer
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteRetailer({ variables: { id } });
+      refetch();
+    } catch (err: any) {
+      console.error(err.message);
+      alert("Failed to delete retailer. Check console for details.");
+    }
+  };
+
+  if (loading) return <p style={{ padding: 30 }}>Loading retailers...</p>;
+  if (error) return <p style={{ padding: 30 }}>Error loading retailers</p>;
 
   return (
-    <div style={{ padding: 30, minHeight: "100vh", backgroundColor: "#121212", color: "#f5f5f7", fontFamily: "Helvetica, Arial, sans-serif" }}>
-      <h1 style={{ textAlign: "center", color: "#af52de", marginBottom: 30, fontWeight: 600 }}>Retailer Hub</h1>
+    <div style={{ minHeight: "100vh", padding: 30, fontFamily: "Arial", background: "#f5f5f5" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <h1 style={{ marginBottom: 30, color: "#007aff" }}>Retailers Manager</h1>
 
-      {/* Retailer Selector */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: 40,
-          gap: 20,
-        }}
-      >
-        <select
-          value={selectedRetailerId || ""}
-          onChange={(e) => handleRetailerChange(e.target.value)}
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid #333",
-            backgroundColor: "#2c2c2e",
-            color: "#f5f5f7",
-            outline: "none",
-            minWidth: 250,
-          }}
-        >
-          <option value="">Select a Retailer</option>
-          {retailData?.retailers.map((r: any) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Retailer Banner */}
-      {selectedRetailerId && (
-        <div style={{
-          textAlign: "center",
-          marginBottom: 40,
-          padding: 20,
-          backgroundColor: "#1e1e1e",
-          borderRadius: 16,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
-        }}>
-          <h2 style={{ color: "#af52de" }}>{getRetailerName(selectedRetailerId)}</h2>
-        </div>
-      )}
-
-      {/* Phones Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 30 }}>
-        {data.searchPhones.length === 0 && <p style={{ textAlign: "center" }}>No phones found for this retailer.</p>}
-        {data.searchPhones.map((phone: any) => (
-          <div
-            key={phone.id}
-            style={{
-              backgroundColor: "#1f1f1f",
-              borderRadius: 16,
-              padding: 15,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              transition: "transform 0.3s, box-shadow 0.3s",
-              boxShadow: "0 6px 20px rgba(0,0,0,0.6)",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-5px)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 10px 30px rgba(0,0,0,0.8)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.6)";
-            }}
-          >
-            <img
-              src={phone.image_url || "/placeholder.png"}
-              alt={phone.model}
-              style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12 }}
+        {/* ===== ADD RETAILER ===== */}
+        <div style={{ background: "#fff", padding: 25, borderRadius: 16, marginBottom: 40, boxShadow: "0 5px 20px rgba(0,0,0,0.1)" }}>
+          <h2 style={{ marginBottom: 20 }}>Add New Retailer</h2>
+          <div style={{ display: "flex", gap: 15, flexWrap: "wrap" }}>
+            <input
+              placeholder="Name"
+              value={newRetailer.name}
+              onChange={(e) => setNewRetailer({ ...newRetailer, name: e.target.value })}
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", flex: 1 }}
             />
-            <h3 style={{ margin: "10px 0 5px 0", color: "#af52de" }}>
-              {phone.brand} {phone.model}
-            </h3>
-            <p>${phone.price}</p>
-            <p>Storage: {phone.storage_gb}GB | RAM: {phone.ram_gb}GB</p>
+            <input
+              placeholder="Location"
+              value={newRetailer.location}
+              onChange={(e) => setNewRetailer({ ...newRetailer, location: e.target.value })}
+              style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", flex: 1 }}
+            />
             <button
-              onClick={() => setSelectedPhone(phone)}
-              style={{
-                marginTop: 10,
-                padding: "8px 16px",
-                borderRadius: 12,
-                border: "none",
-                backgroundColor: "#af52de",
-                color: "#fff",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
+              onClick={handleAdd}
+              style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#007aff", color: "#fff", cursor: "pointer" }}
             >
-              View Details
+              Add Retailer
             </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal */}
-      {selectedPhone && (
-        <div
-          onClick={() => setSelectedPhone(null)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.85)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-            animation: "fadeIn 0.3s",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: "#1f1f1f",
-              padding: 25,
-              borderRadius: 16,
-              width: "90%",
-              maxWidth: 480,
-              position: "relative",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.8)",
-              animation: "scaleIn 0.3s",
-            }}
-          >
-            <button
-              onClick={() => setSelectedPhone(null)}
-              style={{
-                position: "absolute",
-                top: 15,
-                right: 20,
-                fontSize: 26,
-                fontWeight: "bold",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: "#fff",
-              }}
-            >
-              ×
-            </button>
-            <h2 style={{ color: "#af52de" }}>{selectedPhone.brand} {selectedPhone.model}</h2>
-            {selectedPhone.image_url && (
-              <img
-                src={selectedPhone.image_url}
-                alt={selectedPhone.model}
-                style={{ width: "100%", maxHeight: 250, objectFit: "cover", borderRadius: 12, margin: "15px 0" }}
-              />
-            )}
-            <p><strong style={{ color: "#b292ff" }}>Price:</strong> ${selectedPhone.price}</p>
-            <p><strong style={{ color: "#b292ff" }}>Storage:</strong> {selectedPhone.storage_gb} GB</p>
-            <p><strong style={{ color: "#b292ff" }}>RAM:</strong> {selectedPhone.ram_gb} GB</p>
-            {selectedPhone.color && <p><strong style={{ color: "#b292ff" }}>Color:</strong> {selectedPhone.color}</p>}
-            {selectedPhone.description && <p><strong style={{ color: "#b292ff" }}>Description:</strong> {selectedPhone.description}</p>}
           </div>
         </div>
-      )}
 
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-      `}</style>
+        {/* ===== RETAILERS TABLE ===== */}
+        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: 10, overflow: "hidden" }}>
+          <thead style={{ background: "#007aff", color: "#fff" }}>
+            <tr>
+              <th style={{ border: "1px solid #007aff", padding: 10 }}>Name</th>
+              <th style={{ border: "1px solid #007aff", padding: 10 }}>Location</th>
+              <th style={{ border: "1px solid #007aff", padding: 10 }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.retailers.map((retailer: any) => (
+              <tr key={retailer.id}>
+                <td style={{ border: "1px solid #ccc", padding: 8 }}>{retailer.name}</td>
+                <td style={{ border: "1px solid #ccc", padding: 8 }}>{retailer.location}</td>
+                <td style={{ border: "1px solid #ccc", padding: 8, display: "flex", gap: 5 }}>
+                  <button
+                    onClick={() => setViewRetailer(retailer)}
+                    style={{ flex: 1, padding: 6, borderRadius: 6, border: "none", background: "#28a745", color: "#fff", cursor: "pointer" }}
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => setEditRetailer(retailer)}
+                    style={{ flex: 1, padding: 6, borderRadius: 6, border: "none", background: "#007aff", color: "#fff", cursor: "pointer" }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(retailer.id)}
+                    style={{ flex: 1, padding: 6, borderRadius: 6, border: "none", background: "#ff3b30", color: "#fff", cursor: "pointer" }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* ===== VIEW MODAL ===== */}
+        {viewRetailer && (
+          <div
+            style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", padding: 20, zIndex: 1000 }}
+            onClick={() => setViewRetailer(null)}
+          >
+            <div
+              style={{ background: "#fff", padding: 30, borderRadius: 16, width: "90%", maxWidth: 500 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginBottom: 20, color: "#28a745" }}>View Retailer</h2>
+              <p><strong>Name:</strong> {viewRetailer.name}</p>
+              <p><strong>Location:</strong> {viewRetailer.location}</p>
+              <button
+                onClick={() => setViewRetailer(null)}
+                style={{ marginTop: 20, padding: 12, borderRadius: 10, border: "none", background: "#aaa", color: "#fff", cursor: "pointer" }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== EDIT MODAL ===== */}
+        {editRetailer && (
+          <div
+            style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", padding: 20, zIndex: 1000 }}
+            onClick={() => setEditRetailer(null)}
+          >
+            <div
+              style={{ background: "#fff", padding: 30, borderRadius: 16, width: "90%", maxWidth: 500 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginBottom: 20, color: "#007aff" }}>Edit Retailer</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+                <input
+                  placeholder="Name"
+                  value={editRetailer.name}
+                  onChange={(e) => setEditRetailer({ ...editRetailer, name: e.target.value })}
+                  style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+                />
+                <input
+                  placeholder="Location"
+                  value={editRetailer.location}
+                  onChange={(e) => setEditRetailer({ ...editRetailer, location: e.target.value })}
+                  style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
+                />
+                <div style={{ display: "flex", gap: 15 }}>
+                  <button
+                    onClick={handleUpdate}
+                    style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#007aff", color: "#fff", cursor: "pointer" }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditRetailer(null)}
+                    style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: "#aaa", color: "#fff", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
