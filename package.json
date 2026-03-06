@@ -9,6 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@apollo/client": "^3.14.0",
+    "@apollo/server": "^5.4.0",
+    "@as-integrations/next": "^4.1.0",
+    "cors": "^2.8.6",
+    "graphql": "^16.13.1",
+    "mysql2": "^3.18.2",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
